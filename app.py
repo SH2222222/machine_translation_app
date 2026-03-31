@@ -1,25 +1,28 @@
 from flask import Flask, render_template, request
 import numpy as np
-import pickle
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Embedding, LSTM, Dense
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import tokenizer_from_json
 
 app = Flask(__name__)
 
-with open("en_tokenizer.pickle", "rb") as f:
-    en_tokenizer = pickle.load(f)
+# Load tokenizers from JSON
+with open("en_tokenizer.json", "r", encoding="utf-8") as f:
+    en_tokenizer = tokenizer_from_json(f.read())
 
-with open("fr_tokenizer.pickle", "rb") as f:
-    fr_tokenizer = pickle.load(f)
+with open("fr_tokenizer.json", "r", encoding="utf-8") as f:
+    fr_tokenizer = tokenizer_from_json(f.read())
 
+# Constants from training
 MAX_LEN = 25
 EN_VOCAB_SIZE = len(en_tokenizer.word_index) + 1
 FR_VOCAB_SIZE = len(fr_tokenizer.word_index) + 1
 EMBED_DIM = 64
 LATENT_DIM = 128
 
+# Rebuild training architecture
 encoder_inputs = Input(shape=(MAX_LEN,))
 enc_emb_layer = Embedding(EN_VOCAB_SIZE, EMBED_DIM, mask_zero=True)
 enc_emb = enc_emb_layer(encoder_inputs)
@@ -40,10 +43,13 @@ decoder_outputs = decoder_dense(decoder_outputs)
 
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
+# Load weights
 model.load_weights("model.weights.h5")
 
+# Encoder inference model
 encoder_model = Model(encoder_inputs, encoder_states)
 
+# Decoder inference model
 decoder_input_single = Input(shape=(1,))
 h_in = Input(shape=(LATENT_DIM,))
 c_in = Input(shape=(LATENT_DIM,))
